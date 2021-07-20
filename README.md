@@ -3,7 +3,7 @@ Implementation of the paper Text to Image Generation with Semantic-Spatial Aware
 
 # text to image generation 
 <p align="center"> 
-  <img src="./static/SSA-GAN_structure.png" width="640">
+  <img src="./static/SSA-GAN_structure.png" width="900">
   <h3 align="center">
     The structure of the semantic spatial aware GAN  
   </h3>  
