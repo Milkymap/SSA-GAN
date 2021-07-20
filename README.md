@@ -49,7 +49,7 @@ It contains the :
     * optimization 
         * training the damsm
         * training the ssa-gan
-    * readme_utils    
+    * static    
         * contains some image, font for readme rendering 
         * can be easily extended by the user 
     * storage
