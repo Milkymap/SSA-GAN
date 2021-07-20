@@ -7,7 +7,9 @@ __pycache__/
 *.so
 
 # dataset
-storage/
+!storage
+storage/*
+!storage/text/
 
 # Distribution / packaging
 .Python
