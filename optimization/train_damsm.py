@@ -18,18 +18,23 @@ from models.damsm import DAMSM
 @click.option('--nb_epochs', help='number of epochs', type=int)
 @click.option('--bt_size', help='batch size', type=int)
 def main_loop(storage, nb_epochs, bt_size):
+	device = th.device( 'cuda:0' if th.cuda.is_available() else 'cpu' )
 	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256))
 	loader = DATALOADER(dataset=source, shuffle=True, batch_size=bt_size)
 	
-	network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256)
+	network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256).to(device)
 	
 	solver = optim.Adam(network.parameters(), lr=0.0002, betas=(0.5, 0.999))
-	criterion = nn.CrossEntropyLoss()
+	criterion = nn.CrossEntropyLoss().to(device)
 
 	for epoch_counter in range(nb_epochs):
 		for index, (images, captions, lengths) in enumerate(loader.loader):
 			
-			labels = th.arange(len(images))
+			images = images.to(device)
+			lengths = lengths.to(device)
+			captions = captions.to(device)
+
+			labels = th.arange(len(images)).to(device)
 			response = network(images, captions, lengths)	
 			
 			words, sentence, local_features, global_features = response 
@@ -50,5 +55,7 @@ def main_loop(storage, nb_epochs, bt_size):
 			message = (epoch_counter, nb_epochs, index, loss_sw.item())
 			logger.debug('[%03d/%03d]:%05d >> Loss : %07.3f ' % message)
 	
+	th.save(network, 'damsm.th')
+
 if __name__ == '__main__':
 	main_loop()
