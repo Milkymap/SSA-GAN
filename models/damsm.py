@@ -70,9 +70,9 @@ class DAMSM(nn.Module):
 		
 	"""
 
-	def __init__(self, vocab_size, common_space_dim=256):
+	def __init__(self, vocab_size, common_space_dim=256, e_dim=300):
 		super(DAMSM, self).__init__()
-		self.rnn_network = RNN_ENCODER(h_size=common_space_dim // 2, n_layers=1, p=0.1, n_emb=vocab_size, e_dim=100, p_idx=0)
+		self.rnn_network = RNN_ENCODER(h_size=common_space_dim // 2, n_layers=1, p=0.1, n_emb=vocab_size, e_dim=e_dim, p_idx=0)
 		self.cnn_network = CNN_ENCODER(common_space_dim)
 
 	def encode_seq(self, seq, seq_length):
