@@ -17,12 +17,16 @@ from models.damsm import DAMSM
 @click.option('--storage', help='path to dataset: [CUB]')
 @click.option('--nb_epochs', help='number of epochs', type=int)
 @click.option('--bt_size', help='batch size', type=int)
-def main_loop(storage, nb_epochs, bt_size):
+@click.option('--pretrained_model', help='path to pretrained damsm model', default='')
+def main_loop(storage, nb_epochs, bt_size, pretrained_model):
 	device = th.device( 'cuda:0' if th.cuda.is_available() else 'cpu' )
 	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256))
 	loader = DATALOADER(dataset=source, shuffle=True, batch_size=bt_size)
 	
-	network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256).to(device)
+	if pretrained_model != '' and path.isfile(pretrained_model):
+		network = th.load(pretrained_model, map_location=th.device('cpu')).to(device)
+	else:
+		network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256).to(device)
 	
 	solver = optim.Adam(network.parameters(), lr=0.002, betas=(0.5, 0.999))
 	criterion = nn.CrossEntropyLoss().to(device)
@@ -53,8 +57,11 @@ def main_loop(storage, nb_epochs, bt_size):
 
 			message = (epoch_counter, nb_epochs, index, loss_sw.item())
 			logger.debug('[%03d/%03d]:%05d >> Loss : %07.3f ' % message)
+
+		if epoch_counter % 100 == 0:
+			th.save(network, 'dump/damsm.th')		
 	
-	th.save(network, 'damsm.th')
+	th.save(network, 'dump/damsm.th')
 
 if __name__ == '__main__':
 	main_loop()
