@@ -11,6 +11,7 @@ __pycache__/
 storage/*
 !storage/text/
 
+dump/*.th
 
 # Distribution / packaging
 .Python
