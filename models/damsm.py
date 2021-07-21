@@ -60,14 +60,15 @@ class CNN_ENCODER(nn.Module):
 		return th.flatten(self.cnn_(X1), start_dim=2), self.mlp_(X2.view(X2.size(0), -1)).transpose(0, 1)
 
 class DAMSM(nn.Module):
-	"""
 
+	"""
+		B, _, _ = W.shape
 		S = th.einsum('ijk,ijn->ikn', W, I)
 		S = th.softmax(gamma_1 * th.softmax(S, dim=1), dim=2)
 		C = th.einsum('ijk,->imk->imj', S, I)
 		R = F.cosine_similarity(C, W, dim=1)
 		M = th.sum(th.exp(gamma_2 * R), dim=1) ** (1 / gamma_2)
-		
+		W = th.reshape(M, (B, B))
 	"""
 
 	def __init__(self, vocab_size, common_space_dim=256, e_dim=300):
