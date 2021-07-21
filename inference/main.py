@@ -8,14 +8,14 @@ from datalib.data_loader import DATALOADER
 from libraries.strategies import * 
 
 if __name__ == '__main__':
-	model = th.load('dump/damsm_400.th', map_location=th.device('cpu')).eval()
+	model = th.load('dump/damsm_1024.th', map_location=th.device('cpu')).eval()
 	print(model)
 
 	source = DATAHOLDER(path_to_storage='storage', for_train=True, max_len=18, neutral='<###>', shape=(256, 256))
 	loader = DATALOADER(dataset=source, shuffle=False, batch_size=8)
 	
-	img0, cap0, lng0 = source[75]
-	vals = source.get_caption(75)
+	img0, cap0, lng0 = source[455]
+	vals = source.get_caption(455)
 
 	iccm = [img0]
 	cccm = [cap0]
@@ -32,7 +32,7 @@ if __name__ == '__main__':
 	lngs = lccm
 	
 	idxs = th.randperm(len(imgs))
-	#imgs = imgs[idxs, ...]
+	imgs = imgs[idxs, ...]
 	
 	with th.no_grad():
 		resp = model(imgs, caps, lngs)
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 		outp = th.argmax(th.diag(prbs))
 		
 		print(th.diag(prbs))
-		print(outp)
+		print('index of the bird : ',outp.item())
 		print(vals)
 
 		grid = to_grid((imgs * 0.5) + 0.5, nb_rows=4)
