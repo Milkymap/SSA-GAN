@@ -24,14 +24,13 @@ def main_loop(storage, nb_epochs, bt_size):
 	
 	network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256).to(device)
 	
-	solver = optim.Adam(network.parameters(), lr=0.0002, betas=(0.5, 0.999))
+	solver = optim.Adam(network.parameters(), lr=0.002, betas=(0.5, 0.999))
 	criterion = nn.CrossEntropyLoss().to(device)
 
 	for epoch_counter in range(nb_epochs):
 		for index, (images, captions, lengths) in enumerate(loader.loader):
 			
 			images = images.to(device)
-			lengths = lengths.to(device)
 			captions = captions.to(device)
 
 			labels = th.arange(len(images)).to(device)

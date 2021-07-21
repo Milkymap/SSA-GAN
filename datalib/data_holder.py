@@ -51,7 +51,7 @@ class DATAHOLDER(Dataset):
 		f_states = [ int(elm.split(' ')[1]) for elm in line_2 if len(elm) > 0]
 
 		filenames = [ f_name for f_name, f_id in idmap.items() if f_states[f_id] == int(self.mode) ]
-		return filenames, idmap, bboxes
+		return filenames[:1024], idmap, bboxes
 
 
 	def crop_image(self, img, box):
@@ -104,6 +104,13 @@ class DATAHOLDER(Dataset):
 		sequence = th.tensor([ token2index[tok] for tok in caption ])
 		padded_sequences = pad_sequence([zeros, sequence], batch_first=True)
 		return padded_sequences[:, :self.max_len][1]  # ignore the zeros entrie
+
+	def get_caption(self, idx):
+		crr_filename = self.filenames[idx]
+		array_of_captions = self.captions_mapper[crr_filename]
+		picked_idx = np.random.randint(len(array_of_captions))
+		selected_caption = array_of_captions[picked_idx]
+		return ' '.join(selected_caption)
 
 	def __len__(self):
 		return len(self.filenames)
