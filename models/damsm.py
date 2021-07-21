@@ -23,8 +23,8 @@ class RNN_ENCODER(nn.Module):
 	def forward(self, T, seq_length):
 		batch_size, _ = T.shape
 		hidden_cell_0 = (
-			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size),
-			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size)
+			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device),
+			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device)
 		)
 		embedded = self.drop(self.head(T))  # 2D => 3D
 		packed_embedded = pack_padded_sequence(embedded, seq_length, batch_first=True)
@@ -72,7 +72,7 @@ class DAMSM(nn.Module):
 
 	def __init__(self, vocab_size, common_space_dim=256):
 		super(DAMSM, self).__init__()
-		self.rnn_network = RNN_ENCODER(h_size=common_space_dim // 2, n_layers=1, p=0.4, n_emb=vocab_size, e_dim=300, p_idx=0)
+		self.rnn_network = RNN_ENCODER(h_size=common_space_dim // 2, n_layers=1, p=0.1, n_emb=vocab_size, e_dim=100, p_idx=0)
 		self.cnn_network = CNN_ENCODER(common_space_dim)
 
 	def encode_seq(self, seq, seq_length):
@@ -93,7 +93,7 @@ class DAMSM(nn.Module):
 
 		sim_matrix = th.einsum('ijk,ijn->ikn', words_, image_)              
 		normalized_matrix = th.softmax(sim_matrix, dim=1)                     
-		attention_coeficients = th.softmax(gamma_1 * normalized_matrix, dim=1)
+		attention_coeficients = th.softmax(gamma_1 * normalized_matrix, dim=2)
 		regions_context = th.einsum('ijk,imk->imj', attention_coeficients, image_)            
 
 		words_regions_sim = F.cosine_similarity(regions_context, words_, dim=1)
@@ -101,9 +101,8 @@ class DAMSM(nn.Module):
 		batch_image_words_matching_score = th.reshape(image_description_score, (N, N))
 		
 		prob_d_given_q = gamma_3 * batch_image_words_matching_score
-		prob_q_given_d = gamma_3 * batch_image_words_matching_score
 		
-		return prob_d_given_q, prob_q_given_d.transpose(0, 1)
+		return prob_d_given_q, prob_d_given_q.transpose(0, 1)
 
 
 	def global_match_probabilities(self, sentences, features, gamma_3=10):
@@ -115,12 +114,12 @@ class DAMSM(nn.Module):
 		batch_features_sentences_matching_score = th.reshape(image_description_score, (N, N))
 		
 		prob_d_given_q = gamma_3 * batch_features_sentences_matching_score
-		prob_q_given_d = gamma_3 * batch_features_sentences_matching_score
 		
-		return prob_d_given_q, prob_q_given_d.transpose(0, 1)
+		return prob_d_given_q, prob_d_given_q.transpose(0, 1)
 
 
 if __name__ == '__main__':
+	"""
 	T = th.randint(10, 90, size=(5, 15))
 	I = th.randn((5, 3, 256, 256))
 	
@@ -134,5 +133,5 @@ if __name__ == '__main__':
 	Q0, Q1 = D.global_match_probabilities(E, G)
 	print(Q0)
 	print(Q1)
-
-
+	"""
+	
