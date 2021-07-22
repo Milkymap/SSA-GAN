@@ -10,7 +10,7 @@ __pycache__/
 !storage
 storage/*
 !storage/text/
-
+images_store/
 dump/*.th
 
 # Distribution / packaging

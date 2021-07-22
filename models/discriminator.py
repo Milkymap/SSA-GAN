@@ -12,9 +12,9 @@ class DOWNBLOCK(nn.Module):
 		self.head = nn.Conv2d(icn, ocn, 1, 1, 0) if icn != ocn else nn.Identity()
 		self.down = nn.AvgPool2d(2) if down else nn.Identity()
 		self.body = nn.Sequential(
-			nn.Conv2d(icn, ocn, 4, 2, 1), 
+			nn.Conv2d(icn, ocn, 4, 2, 1, bias=False), 
 			nn.LeakyReLU(0.2),
-			nn.Conv2d(ocn, ocn, 3, 1, 1), 
+			nn.Conv2d(ocn, ocn, 3, 1, 1, bias=False), 
 			nn.LeakyReLU(0.2)
 		)
 		self.parm = nn.Parameter(th.zeros(1))
@@ -26,12 +26,13 @@ class CONCATBLOCK(nn.Module):
 	def __init__(self, icn, ocn, tdf):
 		super(CONCATBLOCK, self).__init__()
 		self.body = nn.Sequential(
-			nn.Conv2d(icn + tdf, ocn, 3, 1, 1),
+			nn.Conv2d(icn + tdf, ocn, 3, 1, 1, bias=False),
 			nn.LeakyReLU(0.2),
-			nn.Conv2d(ocn, 1, 4, 1, 0)
+			nn.Conv2d(ocn, 1, 4, 1, 0, bias=False)
 		)
 
 	def forward(self, X, T):
+		T = T.transpose(0, 1)
 		_, _, H, W = X.shape
 		S = T[:, :, None, None].repeat(1, 1, H, W)
 		XS = th.cat((X, S), dim=1)
@@ -55,10 +56,16 @@ class DISCRIMINATOR(nn.Module):
 
 
 if __name__ == '__main__':
-	X = th.randn((2, 3, 256, 256))
-	D = DISCRIMINATOR(3, 64, 256, 4, 6)
-	print(D)
-	T = th.randn((2, 256))
+	X = th.randn((2, 3, 256, 256)).requires_grad_()
+	T = th.randn((256, 2)).requires_grad_()
 
+	D = DISCRIMINATOR(3, 64, 256, 4, 6)
 	Q = D(X, T)
-	print(Q.shape)
+	print(Q)
+
+	Z = th.autograd.grad(Q, [X, T], th.ones(Q.size()), True, True, True)
+	print(Z[0].shape, Z[1].shape)
+	print(len(Z))
+
+	W = th.cat([X.view(X.size(0), -1), T.transpose(0, 1)], dim=1)	
+	print(W.shape)

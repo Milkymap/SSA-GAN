@@ -7,7 +7,7 @@ import operator as op
 import torch as th 
 import torchtext as tt 
 
-from PIL import Image 
+from PIL import Image
 
 from os import path   
 from collections import Counter, OrderedDict 
@@ -21,11 +21,13 @@ from torchvision import transforms as T
 from nltk.tokenize import RegexpTokenizer
 
 class DATAHOLDER(Dataset):
-	def __init__(self, path_to_storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256)):
+	def __init__(self, path_to_storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256), nb_items=1024, default_index=0):
 		self.root = path_to_storage
 		self.mode = for_train
 		self.max_len = max_len
 		self.neutral = neutral
+		self.nb_items = nb_items
+		self.default_index = default_index
 		
 		self.filenames, self.idmap, self.bounding_boxes = self.prepare()
 		self.vocab_mapper, self.captions_mapper, self.num_embeddings = self.build_vocab()
@@ -51,7 +53,7 @@ class DATAHOLDER(Dataset):
 		f_states = [ int(elm.split(' ')[1]) for elm in line_2 if len(elm) > 0]
 
 		filenames = [ f_name for f_name, f_id in idmap.items() if f_states[f_id] == int(self.mode) ]
-		return filenames[:1024], idmap, bboxes
+		return filenames[:self.nb_items], idmap, bboxes
 
 
 	def crop_image(self, img, box):
@@ -93,8 +95,8 @@ class DATAHOLDER(Dataset):
 			accumulator.append( (f_name, tokenized_caps) )
 
 		mapper = vocab(counter)
-		mapper.insert_token(self.neutral, 0)
-		mapper.set_default_index(0)
+		mapper.insert_token(self.neutral, self.default_index)
+		mapper.set_default_index(self.default_index)
 
 		return mapper, dict(accumulator), len(mapper)
 
@@ -104,6 +106,10 @@ class DATAHOLDER(Dataset):
 		sequence = th.tensor([ token2index[tok] for tok in caption ])
 		padded_sequences = pad_sequence([zeros, sequence], batch_first=True)
 		return padded_sequences[:, :self.max_len][1]  # ignore the zeros entrie
+	
+	def map_index2caption(self, index):
+		index2token = self.vocab_mapper.get_itos()
+		return ' '.join([ index2token[idx] for idx in index if idx != self.default_index ])
 
 	def get_caption(self, idx):
 		crr_filename = self.filenames[idx]
@@ -124,16 +130,19 @@ class DATAHOLDER(Dataset):
 		seq_idx = self.map_caption2index(selected_caption)
 		seq_len = (seq_idx != 0).sum().item()
 		image = self.read_image(crr_filename)
-		return image, seq_idx, seq_len 
+		return image, seq_idx, seq_len
 
 if __name__ == '__main__':
-	source = DATAHOLDER('storage', shape=(400, 400))
+	source = DATAHOLDER('storage', shape=(256, 256))
 	print(len(source))
 
-
-	for i in range(0, 200):
+	for i in range(1000, 1024):
 		img, cap, lng = source[i]	
 		img = (img * 0.5) + 0.5 
-		print(cap, lng)
-		cv2.imshow('...', th2cv(img))
+		txt = source.get_caption(i)
+		print(txt)
+		img = th2cv(img)
+		cap = caption2image(txt)
+		res = np.vstack([cap, img])
+		cv2.imshow('###', res)
 		cv2.waitKey(0)
