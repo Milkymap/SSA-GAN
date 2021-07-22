@@ -58,9 +58,9 @@ class SSACN(nn.Module):
 		return R, M 
 
 class GENERATOR(nn.Module):
-	def __init__(self):
+	def __init__(self, noise_dim):
 		super(GENERATOR, self).__init__()
-		self.head = nn.Linear(100, 8192)
+		self.head = nn.Linear(noise_dim, 8192)
 		self.body = nn.ModuleList([
 			SSACN(512, 512, 256, 256, 100, 1, 0),
 			SSACN(512, 512, 256, 256, 100, 1, 1),
@@ -78,12 +78,12 @@ class GENERATOR(nn.Module):
 		)
 
 	def forward(self, Z, T):
+		T = T.transpose(0, 1)
 		N = Z.shape[0]
 		X = th.reshape(self.head(Z), (N, 512, 4, 4))
 		A = []
 		for SSACN_block in self.body: 
 			X, M = SSACN_block(X, T)
-			print(X.shape, M.shape)
 			A.append(M)
 		return self.tail(X), A 
 

@@ -20,7 +20,7 @@ from models.damsm import DAMSM
 @click.option('--pretrained_model', help='path to pretrained damsm model', default='')
 def main_loop(storage, nb_epochs, bt_size, pretrained_model):
 	device = th.device( 'cuda:0' if th.cuda.is_available() else 'cpu' )
-	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256))
+	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256), nb_items=1024)
 	loader = DATALOADER(dataset=source, shuffle=True, batch_size=bt_size)
 	
 	if pretrained_model != '' and path.isfile(pretrained_model):
@@ -54,6 +54,8 @@ def main_loop(storage, nb_epochs, bt_size, pretrained_model):
 			solver.zero_grad()
 			loss_sw.backward()
 			solver.step()
+
+			th.norm()
 
 			message = (epoch_counter, nb_epochs, index, loss_sw.item())
 			logger.debug('[%03d/%03d]:%05d >> Loss : %07.3f ' % message)

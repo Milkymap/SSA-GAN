@@ -31,10 +31,12 @@ class DATALOADER:
 
 if __name__ == '__main__':
 	D = DATAHOLDER('storage')
-	L = DATALOADER(D, True, 12)
+	L = DATALOADER(D, True, 4)
 	for idx, (img, cap, lng) in enumerate(L.loader): 
-		grid = to_grid((img * 0.5) + 0.5, nb_rows=4)
-		cv2.imshow('...', th2cv(grid))
+		fmg = th.sigmoid(th.randn(img.shape))
+		txt = [ D.map_index2caption(seq) for seq in cap]
+		output = snapshot(img, fmg, txt, f'output\nepoch {idx:03d}', mean=[0.5], std=[0.5])
+		cv2.imshow('...', output)
 		cv2.waitKey(0)
 		if idx == 10:
 			break 
