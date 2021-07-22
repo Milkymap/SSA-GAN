@@ -148,12 +148,11 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			message = (epoch_counter, nb_epochs, index, generator_error.item(), discriminator_error.item())
 			logger.debug('[%03d/%03d]:%05d >> GLoss : %07.3f | DLoss : %07.3f' % message)
 			
-			if index % 2 == 0:
+			if index % 32 == 0:
 				descriptions = [ source.map_index2caption(seq) for seq in captions]
 				output = snapshot(real_images.cpu(), fake_images.cpu(), descriptions, f'output epoch {epoch_counter:03d}', mean=[0.5], std=[0.5])
 				cv2.imwrite(path.join(images_store, f'###_{epoch_counter:03d}_{index:03d}.jpg'), output)
-				cv2.imwrite(path.join(images_store, f'$$$_{epoch_counter:03d}_{index:03d}.jpg'), th2cv(to_grid(th.cat([real_images.cpu(), fake_images.cpu()], dim=-1))) * 255  )
-	
+				
 		# temporary model states
 		if epoch_counter % 100 == 0:
 			th.save(generator_network, f'dump/generator_{epoch_counter:03d}.th')		
