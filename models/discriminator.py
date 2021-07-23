@@ -50,6 +50,7 @@ class DISCRIMINATOR(nn.Module):
 		self.tail = CONCATBLOCK(ndf * 2 ** min_idx, ndf * 2 ,tdf) 
 
 	def forward(self, X, T):
+		T = T.transpose(0, 1)
 		Y = self.body(self.head(X))
 		return self.tail(Y, T)
 
