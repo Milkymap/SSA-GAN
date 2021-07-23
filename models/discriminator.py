@@ -32,7 +32,6 @@ class CONCATBLOCK(nn.Module):
 		)
 
 	def forward(self, X, T):
-		T = T.transpose(0, 1)
 		_, _, H, W = X.shape
 		S = T[:, :, None, None].repeat(1, 1, H, W)
 		XS = th.cat((X, S), dim=1)

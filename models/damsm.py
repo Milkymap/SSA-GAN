@@ -26,14 +26,15 @@ class RNN_ENCODER(nn.Module):
 			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device),
 			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device)
 		)
+
 		embedded = self.drop(self.head(T))  # 2D => 3D
 		packed_embedded = pack_padded_sequence(embedded, seq_length, batch_first=True)
 		rnn_packed_response, (hidden_1, _ ) = self.body(packed_embedded, hidden_cell_0)
 		rnn_padded_response, _ = pad_packed_sequence(rnn_packed_response, batch_first=True)
-		words_embedding = rnn_padded_response.transpose(1, 2)  # BxHxS
-		global_sentence_embedding = th.cat(tuple(hidden_1), dim=1).transpose(0, 1)
+		words_embedding = rnn_padded_response.transpose(1, 2)       #BxHxS
+		global_sentence_embedding = th.cat(tuple(hidden_1), dim=1)  #BxH 
 
-		return words_embedding, global_sentence_embedding 
+		return words_embedding, global_sentence_embedding.transpose(0, 1) 
 
 class CNN_ENCODER(nn.Module):
 	def __init__(self, nef):
@@ -87,7 +88,7 @@ class DAMSM(nn.Module):
 		local_image_features, global_image_features = self.encode_img(img)
 		return words_features, sentence_features, local_image_features, global_image_features
 
-	def local_match_probabilities(self, words, image, gamma_1=4, gamma_2=5, gamma_3=10):
+	def local_match_probabilities(self, words, image, gamma_1=5, gamma_2=5, gamma_3=10):
 		N, _, _ = words.shape
 		words_ = th.tile(words, (N, 1, 1))
 		image_ = th.repeat_interleave(image, N, dim=0)
@@ -102,8 +103,9 @@ class DAMSM(nn.Module):
 		batch_image_words_matching_score = th.reshape(image_description_score, (N, N))
 		
 		prob_d_given_q = gamma_3 * batch_image_words_matching_score
-		
-		return prob_d_given_q, prob_d_given_q.transpose(0, 1)
+		prob_q_given_d = prob_d_given_q.transpose(0, 1)
+
+		return prob_d_given_q, prob_q_given_d
 
 
 	def global_match_probabilities(self, sentences, features, gamma_3=10):
@@ -115,8 +117,8 @@ class DAMSM(nn.Module):
 		batch_features_sentences_matching_score = th.reshape(image_description_score, (N, N))
 		
 		prob_d_given_q = gamma_3 * batch_features_sentences_matching_score
-		
-		return prob_d_given_q, prob_d_given_q.transpose(0, 1)
+		prob_q_given_d = prob_d_given_q.transpose(0, 1)
+		return prob_d_given_q, prob_q_given_d 
 
 
 if __name__ == '__main__':

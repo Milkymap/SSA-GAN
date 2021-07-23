@@ -13,7 +13,7 @@ from datalib.data_loader import DATALOADER
 
 from models.damsm import DAMSM
 from models.generator import GENERATOR
-from models.discriminator import DISCRIMINATOR
+from models.attngan_discriminator import DISCRIMINATOR
 
 from os import path, mkdir  
 
@@ -43,20 +43,19 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 		dams_network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256).to(device)
 	
 	generator_network = GENERATOR(noise_dim=noise_dim).to(device) 
-	discriminator_network = DISCRIMINATOR(icn=3, ndf=64, tdf=256, min_idx=4, nb_dblocks=6).to(device)
+	discriminator_network =  DISCRIMINATOR(icn=3, ndf=64, tdf=256).to(device)
 
 	generator_network.train()
 	discriminator_network.train()
 	logger.debug('Generator and Discriminator were created')
 	# define hyparameters
-	p = 6.0 
-	lambda_MA = 2.0
-	lambda_DA = 0.05
-
+	lambda_DA = 5 
+	
 	# define solvers and criterions
 	dams_criterion = nn.CrossEntropyLoss().to(device)
-	generator_solver = optim.Adam(discriminator_network.parameters(), lr=1e-4, betas=(0.0, 0.999))
-	discriminator_solver = optim.Adam(discriminator_network.parameters(), lr=4e-4, betas=(0.0, 0.999)) 
+	gans_criterion = nn.BCELoss().to(device)
+	generator_solver = optim.Adam(discriminator_network.parameters(), lr=2e-4, betas=(0.5, 0.999))
+	discriminator_solver = optim.Adam(discriminator_network.parameters(), lr=2e-4, betas=(0.5, 0.999)) 
 
 	# main training loop  
 	for epoch_counter in range(nb_epochs):
@@ -64,61 +63,29 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			# size current batch
 			bsz = len(real_images)   
 
+			# define real and fake labels
+			real_labels = th.ones(bsz).to(device)
+			fake_labels = th.zeros(bsz).to(device)
+
 			# move data to target device : gpu or cpu 
 			real_images = real_images.to(device)
 			captions = captions.to(device)
 			labels = th.arange(len(real_images)).to(device)
 
-			# image and caption encoding
-			response = dams_network(real_images, captions, lengths)	
-			words, sentences, local_features, global_features = list(map(lambda mdl: mdl.detach(), response)) 
+			words, sentences = dams_network.encode_seq(captions, lengths)	
+			words, sentences, words.detach(), sentences.detach()
 
-			real_images_features = discriminator_network(real_images, sentences)
-			mismatch_images_features = discriminator_network(real_images[:bsz-1], sentences[:, 1:])
+			#-------------------------#
+			# train generator network #
+			#-------------------------#
 
 			# synthetize fake real_images
 			noise = th.randn((bsz, noise_dim)).to(device)
 			fake_images, predicted_masks = generator_network(noise, sentences)
 
-			fake_images_features = discriminator_network(fake_images.detach(), sentences)
-
-			discriminator_error_real = th.mean(th.relu(1 - real_images_features))
-			discriminator_error_fake = th.mean(th.relu(1 + fake_images_features))
-			discriminator_error_mismatch  = th.mean(th.relu(1 + mismatch_images_features))
-
-			discriminator_error = discriminator_error_real + 0.5 * (discriminator_error_fake + discriminator_error_mismatch)
-
-			discriminator_solver.zero_grad()
-			discriminator_error.backward()
-			discriminator_solver.step()
-
-		
-			# compute the Matching-Aware zero-centered Gradient Penalty 
-			interpolated_real_images = (real_images.data).requires_grad_()
-			interpolated_sentences = (sentences.data).requires_grad_()
-			interpolated_real_images_features = discriminator_network(interpolated_real_images, interpolated_sentences)
-			gradients = th.autograd.grad(
-				outputs=interpolated_real_images_features, 
-				inputs=[interpolated_real_images, interpolated_sentences], 
-				grad_outputs=th.ones(interpolated_real_images_features.shape).to(device), 
-				only_inputs=True,
-				retain_graph=True, 
-				create_graph=True 
-			)
-
-			interpolated_real_images_gradients = gradients[0].view(bsz, -1)
-			interpolated_sentences_gradients = gradients[1].transpose(0, 1)
-		
-			merged_gradients = th.cat([interpolated_real_images_gradients, interpolated_sentences_gradients], dim=1)
-			MAGP_value = th.min(lambda_MA * th.mean(th.sqrt(1e-8 + th.sum(merged_gradients ** 2, dim=1)) ** p), 5)
-
-			# backpropagate the error through the discriminator network 
-			discriminator_solver.zero_grad()
-			MAGP_value.backward()
-			discriminator_solver.step()
-		
-			fake_images_features = discriminator_network(fake_images, sentences)
-			# compute the deep attentional multimodal similarity
+			# image and caption encoding
+			local_features, global_features = dams_network.encode_img(fake_images)	
+			local_features, global_features = local_features.detach(), global_features.detach() 
 
 			wq_prob, qw_prob = dams_network.local_match_probabilities(words, local_features)
 			sq_prob, qs_prob = dams_network.global_match_probabilities(sentences, global_features)
@@ -130,7 +97,16 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 
 			error_damsm = error_w1 + error_w2 + error_s1 + error_s2
 
-			generator_error =  lambda_DA * error_damsm - fake_images_features.mean() 
+			fake_images_features = discriminator_network(fake_images)
+			fake_images_u_features = discriminator_network.get_logits(fake_images_features)
+			fake_images_c_features = discriminator_network.get_logits(fake_images_features, sentences)
+
+			generator_u_error = gans_criterion(fake_images_u_features, real_labels)
+			generator_c_error = gans_criterion(fake_images_c_features, real_labels)
+			
+			# compute the deep attentional multimodal similarity
+
+			generator_error =  lambda_DA * error_damsm + 0.5 * (generator_u_error + generator_c_error)
 
 			# backpropagate the error through the generator and dams network
 
@@ -138,16 +114,46 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			generator_error.backward()
 			generator_solver.step()
 
+			#-----------------------------#
+			# train discriminator network #
+			#-----------------------------#
+
+			real_images_features = discriminator_network(real_images)
+			real_images_u_features = discriminator_network.get_logits(real_images_features)
+			real_images_c_features = discriminator_network.get_logits(real_images_features, sentences)
+
+			fake_images_features = discriminator_network(fake_images.detach())
+			fake_images_u_features = discriminator_network.get_logits(fake_images_features)
+			fake_images_c_features = discriminator_network.get_logits(fake_images_features, sentences)
+
+			discriminator_real_u_error = gans_criterion(real_images_u_features, real_labels)
+			discriminator_real_c_error = gans_criterion(real_images_c_features, real_labels)
+
+			discriminator_fake_u_error = gans_criterion(fake_images_u_features, fake_labels)
+			discriminator_fake_c_error = gans_criterion(fake_images_c_features, fake_labels)
+
+			discriminator_real_error = discriminator_real_u_error + discriminator_real_c_error
+			discriminator_fake_error = discriminator_fake_u_error + discriminator_fake_c_error
+
+			discriminator_error = 0.5 * discriminator_real_error + 0.5 * discriminator_fake_error
+
+			discriminator_solver.zero_grad()
+			discriminator_error.backward()
+			discriminator_solver.step()
+
 			#---------------------------------------------#
 			# debug some infos : epoch counter, loss value#
 			#---------------------------------------------#
 		
-			message = (epoch_counter, nb_epochs, index, generator_error.item(), discriminator_error.item(), MAGP_value.item())
-			logger.debug('[%03d/%03d]:%05d >> GLoss : %07.3f | DLoss : %07.3f | MAGP_value : %07.3f' % message)
+			message = (epoch_counter, nb_epochs, index, generator_error.item(), discriminator_error.item())
+			logger.debug('[%03d/%03d]:%05d >> GLoss : %07.3f | DLoss : %07.3f' % message)
 			
-			if index % 100 == 0:
+			if index % 10 == 0:
 				descriptions = [ source.map_index2caption(seq) for seq in captions]
 				output = snapshot(real_images.cpu(), fake_images.cpu(), descriptions, f'output epoch {epoch_counter:03d}', mean=[0.5], std=[0.5])
+				#cv2.imshow(f'###.jpg', output)
+				#cv2.waitKey(10)
+
 				cv2.imwrite(path.join(images_store, f'###_{epoch_counter:03d}_{index:03d}.jpg'), output)
 				
 		# temporary model states
