@@ -9,13 +9,12 @@ from libraries.strategies import *
 
 if __name__ == '__main__':
 	model = th.load('dump/damsm_1024.th', map_location=th.device('cpu')).eval()
-	print(model)
 
 	source = DATAHOLDER(path_to_storage='storage', for_train=True, max_len=18, neutral='<###>', shape=(256, 256))
 	loader = DATALOADER(dataset=source, shuffle=False, batch_size=8)
 	
-	img0, cap0, lng0 = source[455]
-	vals = source.get_caption(455)
+	img0, cap0, lng0 = source[10]
+	vals = source.get_caption(10)
 
 	iccm = [img0]
 	cccm = [cap0]

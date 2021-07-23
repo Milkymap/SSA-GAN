@@ -55,7 +55,7 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 
 	# define solvers and criterions
 	dams_criterion = nn.CrossEntropyLoss().to(device)
-	generator_solver = optim.Adam(discriminator_network.parameters(), lr=1e-4, betas=(0.0, 0.999))
+	generator_solver = optim.Adam(generator_network.parameters(), lr=1e-4, betas=(0.0, 0.999))
 	discriminator_solver = optim.Adam(discriminator_network.parameters(), lr=4e-4, betas=(0.0, 0.999)) 
 
 	# main training loop  
@@ -69,9 +69,9 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			captions = captions.to(device)
 			labels = th.arange(len(real_images)).to(device)
 
-			# image and caption encoding
-			response = dams_network(real_images, captions, lengths)	
-			words, sentences, local_features, global_features = list(map(lambda mdl: mdl.detach(), response)) 
+			# caption encoding
+			response = dams_network.encode_seq(captions, lengths)	
+			words, sentences = list(map(lambda mdl: mdl.detach(), response)) 
 
 			real_images_features = discriminator_network(real_images, sentences)
 			mismatch_images_features = discriminator_network(real_images[:bsz-1], sentences[:, 1:])
@@ -92,7 +92,6 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			discriminator_error.backward()
 			discriminator_solver.step()
 
-		
 			# compute the Matching-Aware zero-centered Gradient Penalty 
 			interpolated_real_images = (real_images.data).requires_grad_()
 			interpolated_sentences = (sentences.data).requires_grad_()
@@ -110,13 +109,16 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			interpolated_sentences_gradients = gradients[1].transpose(0, 1)
 		
 			merged_gradients = th.cat([interpolated_real_images_gradients, interpolated_sentences_gradients], dim=1)
-			MAGP_value = th.min(lambda_MA * th.mean(th.sqrt(1e-8 + th.sum(merged_gradients ** 2, dim=1)) ** p), 5)
+			MAGP_value = lambda_MA * th.mean(th.sqrt(1e-8 + th.sum(merged_gradients ** 2, dim=1)) ** p)
 
 			# backpropagate the error through the discriminator network 
 			discriminator_solver.zero_grad()
 			MAGP_value.backward()
 			discriminator_solver.step()
-		
+
+			response = dams_network.encode_img(fake_images)	
+			local_features, global_features = list(map(lambda mdl: mdl.detach(), response)) 
+
 			fake_images_features = discriminator_network(fake_images, sentences)
 			# compute the deep attentional multimodal similarity
 
@@ -153,8 +155,11 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 		# temporary model states
 		if epoch_counter % 100 == 0:
 			th.save(generator_network, f'dump/generator_{epoch_counter:03d}.th')		
+			th.save(discriminator_network, f'dump/discriminator_{epoch_counter:03d}.th')		
 	
 	th.save(generator_network, f'dump/generator_{epoch_counter:03d}.th')
+	th.save(discriminator_network, f'dump/discriminator_{epoch_counter:03d}.th')		
+	
 	logger.success('End of training ...!')
 
 if __name__ == '__main__':
