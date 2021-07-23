@@ -52,6 +52,7 @@ class SSACN(nn.Module):
 		self.parm = nn.Parameter(th.zeros(1))
 
 	def forward(self, X, T):
+		T = T.transpose(0, 1)
 		U = self.head(X)
 		M = self.mask(U)
 		R = self.conv(U) + self.parm * self.cbn2(self.cbn1(U, M, T), M, T)
@@ -78,7 +79,6 @@ class GENERATOR(nn.Module):
 		)
 
 	def forward(self, Z, T):
-		T = T.transpose(0, 1)
 		N = Z.shape[0]
 		X = th.reshape(self.head(Z), (N, 512, 4, 4))
 		A = []
