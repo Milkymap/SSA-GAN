@@ -55,7 +55,6 @@ class DATAHOLDER(Dataset):
 		filenames = [ f_name for f_name, f_id in idmap.items() if f_states[f_id] == int(self.mode) ]
 		return filenames[:self.nb_items], idmap, bboxes
 
-
 	def crop_image(self, img, box):
 		W, H = img.size
 		x, y, w, h = box 
