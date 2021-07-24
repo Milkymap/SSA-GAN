@@ -8,13 +8,14 @@ from torch.utils.data import DataLoader
 from libraries.strategies import * 
 
 class DATALOADER:
-	def __init__(self, dataset, shuffle, batch_size):
+	def __init__(self, dataset, shuffle, batch_size, sampler=None):
 		self.loader = DataLoader(
 			dataset=dataset, 
 			shuffle=shuffle, 
 			batch_size=batch_size, 
 			collate_fn=self.custom_collate_fn, 
-			drop_last=True
+			drop_last=True, 
+			sampler=sampler 
 		)
 
 	def custom_collate_fn(self, data):

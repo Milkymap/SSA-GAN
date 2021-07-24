@@ -17,6 +17,30 @@ from models.discriminator import DISCRIMINATOR
 
 from os import path, mkdir  
 
+"""
+
+	import torch as th 
+	import torch.nn as nn 
+	import torch.optim as optim 
+
+	import torch.distributed as td 
+	import torch.multiprocessing as tm 
+
+	from torch.utils.data import DataLoader as DTL 
+	from torch.utils.data.distributed import DistributedSampler as DSP 
+	from torch.nn.parallel import DistributedDataParallel as DDP 
+
+	td.init_process_group(word_size=, rank=, backend=, init_method=)
+
+	th.set_manual_seed(0)
+	th.cuda.set_device(gpu_id)
+
+	DDP(module=network, device_ids=[gpu_id], broadcast_buffers=False)
+	DSP(dataset=, num_replicas=, rank=)
+	DTL(dataset=, shuffle=, batch_size, sampler)
+
+"""
+
 @click.command()
 @click.option('--storage', help='path to dataset: [CUB]')
 @click.option('--nb_epochs', help='number of epochs', type=int)
