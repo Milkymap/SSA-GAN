@@ -54,7 +54,6 @@ class CNN_ENCODER(nn.Module):
 		self.cnn_.weight.data.uniform_(-0.1, 0.1)
 		self.mlp_.weight.data.uniform_(-0.1, 0.1)
 
-
 	def forward(self, X0):
 		X1 = self.head(self.init(X0))
 		X2 = self.body(X1)
@@ -88,37 +87,36 @@ class DAMSM(nn.Module):
 		local_image_features, global_image_features = self.encode_img(img)
 		return words_features, sentence_features, local_image_features, global_image_features
 
-	def local_match_probabilities(self, words, image, gamma_1=5, gamma_2=5, gamma_3=10):
-		N, _, _ = words.shape
-		words_ = th.tile(words, (N, 1, 1))
-		image_ = th.repeat_interleave(image, N, dim=0)
+def local_match_probabilities(words, image, gamma_1=5, gamma_2=5, gamma_3=10):
+	N, _, _ = words.shape
+	words_ = th.tile(words, (N, 1, 1))
+	image_ = th.repeat_interleave(image, N, dim=0)
 
-		sim_matrix = th.einsum('ijk,ijn->ikn', words_, image_)              
-		normalized_matrix = th.softmax(sim_matrix, dim=1)                     
-		attention_coeficients = th.softmax(gamma_1 * normalized_matrix, dim=2)
-		regions_context = th.einsum('ijk,imk->imj', attention_coeficients, image_)            
+	sim_matrix = th.einsum('ijk,ijn->ikn', words_, image_)              
+	normalized_matrix = th.softmax(sim_matrix, dim=1)                     
+	attention_coeficients = th.softmax(gamma_1 * normalized_matrix, dim=2)
+	regions_context = th.einsum('ijk,imk->imj', attention_coeficients, image_)            
 
-		words_regions_sim = F.cosine_similarity(regions_context, words_, dim=1)
-		image_description_score = th.log(th.sum(th.exp(gamma_2 * words_regions_sim), dim=1))
-		batch_image_words_matching_score = th.reshape(image_description_score, (N, N))
-		
-		prob_d_given_q = gamma_3 * batch_image_words_matching_score
-		prob_q_given_d = prob_d_given_q.transpose(0, 1)
+	words_regions_sim = F.cosine_similarity(regions_context, words_, dim=1)
+	image_description_score = th.log(th.sum(th.exp(gamma_2 * words_regions_sim), dim=1))
+	batch_image_words_matching_score = th.reshape(image_description_score, (N, N))
+	
+	prob_d_given_q = gamma_3 * batch_image_words_matching_score
+	prob_q_given_d = prob_d_given_q.transpose(0, 1)
+	return prob_d_given_q, prob_q_given_d
 
-		return prob_d_given_q, prob_q_given_d
 
+def global_match_probabilities(sentences, features, gamma_3=10):
+	_, N = sentences.shape  
+	sentences_ = th.tile(sentences, (1, N))
+	features_ = th.repeat_interleave(features, N, dim=1)
 
-	def global_match_probabilities(self, sentences, features, gamma_3=10):
-		_, N = sentences.shape  
-		sentences_ = th.tile(sentences, (1, N))
-		features_ = th.repeat_interleave(features, N, dim=1)
-
-		image_description_score = F.cosine_similarity(sentences_, features_, dim=0)
-		batch_features_sentences_matching_score = th.reshape(image_description_score, (N, N))
-		
-		prob_d_given_q = gamma_3 * batch_features_sentences_matching_score
-		prob_q_given_d = prob_d_given_q.transpose(0, 1)
-		return prob_d_given_q, prob_q_given_d 
+	image_description_score = F.cosine_similarity(sentences_, features_, dim=0)
+	batch_features_sentences_matching_score = th.reshape(image_description_score, (N, N))
+	
+	prob_d_given_q = gamma_3 * batch_features_sentences_matching_score
+	prob_q_given_d = prob_d_given_q.transpose(0, 1)
+	return prob_d_given_q, prob_q_given_d 
 
 
 if __name__ == '__main__':
