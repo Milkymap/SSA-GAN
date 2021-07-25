@@ -21,7 +21,7 @@ class RNN_ENCODER(nn.Module):
 		self.head.weight.data.uniform_(-0.1, 0.1)
 	
 	def forward(self, T, seq_length):
-		batch_size, max_length, _ = T.shape
+		batch_size, max_length  = T.shape
 		hidden_cell_0 = (
 			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device),
 			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device)
