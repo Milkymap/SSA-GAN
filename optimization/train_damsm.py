@@ -4,12 +4,7 @@ import torch as th
 import torch.nn as nn 
 import torch.optim as optim
 import torch.nn.functional as F 
-
-import torch.distributed as td 
-import torch.multiprocessing as tm 
-
-from torch.nn.parallel import DistributedDataParallel as DDP 
-from torch.utils.data import DistributedSampler as DSP 
+import torch.nn.DataParallel as DP 
  
 from libraries.strategies import * 
 from libraries.log import logger 
@@ -20,15 +15,16 @@ from datalib.data_loader import DATALOADER
 from models.damsm import DAMSM
 
 def train_0(storage, nb_epochs, bt_size, pretrained_model):
+	nbgpus = th.cuda.device_count() 
 	device = th.device( 'cuda:0' if th.cuda.is_available() else 'cpu' )
-	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256), nb_items=1024)
+	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256))
 	loader = DATALOADER(dataset=source, shuffle=True, batch_size=bt_size)
 	
-	if pretrained_model != '' and path.isfile(pretrained_model):
-		network = th.load(pretrained_model, map_location=th.device('cpu')).to(device)
-	else:
-		network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256).to(device)
+	network = DAMSM(vocab_size=len(source.vocab_mapper), common_space_dim=256)
+	if nbgpus > 1:
+		network = DP(network, device_ids=list(range(nbgpus)))
 	
+	network.to(device)
 	solver = optim.Adam(network.parameters(), lr=0.002, betas=(0.5, 0.999))
 	criterion = nn.CrossEntropyLoss().to(device)
 

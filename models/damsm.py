@@ -21,7 +21,7 @@ class RNN_ENCODER(nn.Module):
 		self.head.weight.data.uniform_(-0.1, 0.1)
 	
 	def forward(self, T, seq_length):
-		batch_size, _ = T.shape
+		batch_size, max_length, _ = T.shape
 		hidden_cell_0 = (
 			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device),
 			th.zeros(2 * self.numb_layers, batch_size, self.hidden_size).to(next(self.parameters()).device)
@@ -30,7 +30,7 @@ class RNN_ENCODER(nn.Module):
 		embedded = self.drop(self.head(T))  # 2D => 3D
 		packed_embedded = pack_padded_sequence(embedded, seq_length, batch_first=True)
 		rnn_packed_response, (hidden_1, _ ) = self.body(packed_embedded, hidden_cell_0)
-		rnn_padded_response, _ = pad_packed_sequence(rnn_packed_response, batch_first=True)
+		rnn_padded_response, _ = pad_packed_sequence(rnn_packed_response, batch_first=True, total_length=max_length)
 		words_embedding = rnn_padded_response.transpose(1, 2)       #BxHxS
 		global_sentence_embedding = th.cat(tuple(hidden_1), dim=1)  #BxH 
 
