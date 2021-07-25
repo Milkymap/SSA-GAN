@@ -21,7 +21,7 @@ from torchvision import transforms as T
 from nltk.tokenize import RegexpTokenizer
 
 class DATAHOLDER(Dataset):
-	def __init__(self, path_to_storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256), nb_items=1024, default_index=0):
+	def __init__(self, path_to_storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256), nb_items=None, default_index=0):
 		self.root = path_to_storage
 		self.mode = for_train
 		self.max_len = max_len
@@ -53,7 +53,9 @@ class DATAHOLDER(Dataset):
 		f_states = [ int(elm.split(' ')[1]) for elm in line_2 if len(elm) > 0]
 
 		filenames = [ f_name for f_name, f_id in idmap.items() if f_states[f_id] == int(self.mode) ]
-		return filenames[:self.nb_items], idmap, bboxes
+		if self.nb_items is not None:
+			filenames = filenames[:self.nb_items]
+		return filenames, idmap, bboxes
 
 	def crop_image(self, img, box):
 		W, H = img.size
