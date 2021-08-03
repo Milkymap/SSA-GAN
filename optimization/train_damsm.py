@@ -32,10 +32,10 @@ def main_loop(storage, nb_epochs, bt_size, pretrained_model):
 	
 	solver = optim.Adam(network.parameters(), lr=0.002, betas=(0.5, 0.999))
 	criterion = nn.CrossEntropyLoss().to(device)
-	nb_images = 0
 	total_images = len(source)
 
 	for epoch_counter in range(nb_epochs):
+		nb_images = 0
 		for index, (images, captions, lengths) in enumerate(loader.loader):
 			batch_size = images.size(0)
 			nb_images = nb_images + batch_size 
