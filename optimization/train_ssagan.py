@@ -48,7 +48,7 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 	generator_network.train()
 	discriminator_network.train()
 	logger.debug('Generator and Discriminator were created')
-	
+
 	# define hyparameters
 	p = 6.0 
 	lambda_MA = 2.0
@@ -64,6 +64,7 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 
 	# main training loop  
 	for epoch_counter in range(nb_epochs):
+		nb_images = 0
 		for index, (real_images, captions, lengths) in enumerate(loader.loader):
 			# size current batch
 			bsz = len(real_images)   
