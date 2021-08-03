@@ -19,7 +19,7 @@ Implementation of the paper Text to Image Generation with Semantic-Spatial Aware
 
 ---
 ---
-# abstract (papper)
+# abstract (paper)
 
 A text to image generation (T2I) model aims to gener-ate  photo-realistic  images  which  are  semantically  consis-tent  with  the  text  descriptions.   Built  upon  the  recent  ad-vances in generative adversarial networks (GANs), existingT2I models have made great progress. However, a close in-spection of their generated images reveals two major limi-tations: (1) The condition batch normalization methods areapplied  on  the  whole  image  feature  maps  equally,  ignor-ing the local semantics; (2) The text encoder is fixed dur-ing training, which should be trained with the image gen-erator  jointly  to  learn  better  text  representations  for  im-age generation.   To address these limitations,  we proposea novel framework Semantic-Spatial Aware GAN, which istrained  in  an  end-to-end  fashion  so  that  the  text  encodercan exploit better text information.   Concretely,  we intro-duce a novel Semantic-Spatial Aware Convolution Network,which (1) learns semantic-adaptive transformation condi-tioned on text to effectively fuse text features and image fea-tures,  and (2) learns a mask map in a weakly-supervisedway that depends on the current text-image fusion processin order to guide the transformation spatially. Experimentson the challenging COCO and CUB bird datasets demon-strate the advantage of our method over the recent state-of-the-art  approaches,  regarding  both  visual  fidelity  andalignment with input text description
 
