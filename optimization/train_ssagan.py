@@ -152,7 +152,7 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			message = (nb_images, total_images, epoch_counter, nb_epochs, index, generator_error.item(), discriminator_error.item(), MAGP_value.item())
 			logger.debug('[%04d/%04d] | [%03d/%03d]:%05d | GLoss : %07.3f | DLoss : %07.3f | MAGP_value : %07.3f' % message)
 			
-			if index % 100 == 0:
+			if index % 2 == 0:
 				descriptions = [ source.map_index2caption(seq) for seq in captions]
 				output = snapshot(real_images.cpu(), fake_images.cpu(), descriptions, f'output epoch {epoch_counter:03d}', mean=[0.5], std=[0.5])
 				cv2.imwrite(path.join(images_store, f'###_{epoch_counter:03d}_{index:03d}.jpg'), output)
