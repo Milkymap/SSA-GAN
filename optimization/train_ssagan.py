@@ -11,7 +11,7 @@ from libraries.log import logger
 from datalib.data_holder import DATAHOLDER 
 from datalib.data_loader import DATALOADER 
 
-from models.damsm import DAMSM
+from models.damsm import * 
 from models.generator import GENERATOR
 from models.discriminator import DISCRIMINATOR
 
@@ -19,15 +19,15 @@ from os import path, mkdir
 
 @click.command()
 @click.option('--storage', help='path to dataset: [CUB]')
-@click.option('--nb_epochs', help='number of epochs', type=int)
-@click.option('--bt_size', help='batch size', type=int)
+@click.option('--nb_epochs', help='number of epochs', type=int, default=600)
+@click.option('--bt_size', help='batch size', type=int, default=4)
 @click.option('--noise_dim', help='dimension of the noise vector Z', default=100)
 @click.option('--pretrained_model', help='path to pretrained damsm model', default='')
 @click.option('--images_store', help='generated images will be stored in this directory', default='images_store')
 def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_store):
 	# intitialization : device, dataset and dataloader 
 	device = th.device( 'cuda:0' if th.cuda.is_available() else 'cpu' )
-	source = DATAHOLDER(path_to_storage=storage, for_train=True, max_len=18, neutral='<###>', shape=(256, 256), nb_items=1024)
+	source = DATAHOLDER(path_to_storage=storage, max_len=18, neutral='<###>', shape=(256, 256))
 	loader = DATALOADER(dataset=source, shuffle=True, batch_size=bt_size)
 	if not path.isdir(images_store):
 		mkdir(images_store)
@@ -48,6 +48,7 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 	generator_network.train()
 	discriminator_network.train()
 	logger.debug('Generator and Discriminator were created')
+	
 	# define hyparameters
 	p = 6.0 
 	lambda_MA = 2.0
@@ -58,11 +59,15 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 	generator_solver = optim.Adam(generator_network.parameters(), lr=1e-4, betas=(0.0, 0.999))
 	discriminator_solver = optim.Adam(discriminator_network.parameters(), lr=4e-4, betas=(0.0, 0.999)) 
 
+	nb_images = 0 
+	total_images = len(source)
+
 	# main training loop  
 	for epoch_counter in range(nb_epochs):
 		for index, (real_images, captions, lengths) in enumerate(loader.loader):
 			# size current batch
 			bsz = len(real_images)   
+			nb_images = nb_images + bsz 
 
 			# move data to target device : gpu or cpu 
 			real_images = real_images.to(device)
@@ -122,8 +127,8 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			fake_images_features = discriminator_network(fake_images, sentences)
 			# compute the deep attentional multimodal similarity
 
-			wq_prob, qw_prob = dams_network.local_match_probabilities(words, local_features)
-			sq_prob, qs_prob = dams_network.global_match_probabilities(sentences, global_features)
+			wq_prob, qw_prob = local_match_probabilities(words, local_features)
+			sq_prob, qs_prob = global_match_probabilities(sentences, global_features)
 
 			error_w1 = dams_criterion(wq_prob, labels) 
 			error_w2 = dams_criterion(qw_prob, labels)
@@ -131,8 +136,7 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			error_s2 = dams_criterion(qs_prob, labels)
 
 			error_damsm = error_w1 + error_w2 + error_s1 + error_s2
-
-			generator_error =  lambda_DA * error_damsm - fake_images_features.mean() 
+			generator_error = lambda_DA * error_damsm - fake_images_features.mean() 
 
 			# backpropagate the error through the generator and dams network
 
@@ -144,8 +148,8 @@ def main_loop(storage, nb_epochs, bt_size, noise_dim, pretrained_model, images_s
 			# debug some infos : epoch counter, loss value#
 			#---------------------------------------------#
 		
-			message = (epoch_counter, nb_epochs, index, generator_error.item(), discriminator_error.item(), MAGP_value.item())
-			logger.debug('[%03d/%03d]:%05d >> GLoss : %07.3f | DLoss : %07.3f | MAGP_value : %07.3f' % message)
+			message = (nb_images, total_images, epoch_counter, nb_epochs, index, generator_error.item(), discriminator_error.item(), MAGP_value.item())
+			logger.debug('[%04d/%04d] | [%03d/%03d]:%05d | GLoss : %07.3f | DLoss : %07.3f | MAGP_value : %07.3f' % message)
 			
 			if index % 100 == 0:
 				descriptions = [ source.map_index2caption(seq) for seq in captions]
